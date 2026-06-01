@@ -1,7 +1,7 @@
 # localproxy-vless
 
 Локальные **HTTP** и **SOCKS5** прокси на вашем Linux-сервере. Весь трафик клиентов уходит через **VLESS** (xHTTP + Reality) на зарубежный сервер.
-
+![Screenshot](https://github.com/zaycevmain/localproxy-vless/blob/main/pic.png)
 ```
 [Телефон/ПК] ── HTTP/SOCKS5 ──► [Linux у вас] ── VLESS ──► [VPS за рубежом]
 ```
