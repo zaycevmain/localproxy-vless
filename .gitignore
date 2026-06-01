@@ -2,3 +2,4 @@ bin/
 var/
 config/vless.url
 config/proxy.json
+.DS_Store
