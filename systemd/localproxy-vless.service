@@ -1,0 +1,19 @@
+[Unit]
+Description=localproxy-vless (HTTP/SOCKS -> VLESS via Xray)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=__USER__
+Group=__GROUP__
+WorkingDirectory=__ROOT__
+ExecStart=/bin/bash __ROOT__/scripts/run-foreground.sh
+Restart=on-failure
+RestartSec=3
+LimitNOFILE=1048576
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

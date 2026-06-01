@@ -1,0 +1,28 @@
+{
+  "http_active": true,
+  "socks5_active": true,
+  "listen_host": "0.0.0.0",
+  "proxies": [
+    {
+      "name": "MyProxy",
+      "type": "socks5",
+      "port": 18018,
+      "user": "ivan",
+      "password": "1qa2ws"
+    },
+    {
+      "name": "TestProxy",
+      "type": "socks5",
+      "port": 19011,
+      "user": "evgeniy",
+      "password": "qd4h42"
+    },
+    {
+      "name": "Telegram",
+      "type": "http",
+      "port": 1324,
+      "user": "evgeniy",
+      "password": "qd4h42"
+    }
+  ]
+}

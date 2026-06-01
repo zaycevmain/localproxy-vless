@@ -1,0 +1,3 @@
+# Скопируйте в config/vless.url и вставьте свою VLESS-ссылку одной строкой.
+# Пример формата (замените на свою ссылку с панели):
+vless://UUID@server.example.com:443?encryption=none&security=reality&type=xhttp&...
