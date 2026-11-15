@@ -58,10 +58,15 @@ chmod +x install.sh scripts/*.sh systemd/*.sh
 ./install.sh
 ```
 
-Если Xray уже установлен, повторный запуск ничего не меняет. Чтобы
-обновить или откатить версию:
+По умолчанию скрипт сам определяет последний релиз Xray на GitHub и
+скачивает его. Xray не берётся из репозиториев дистрибутива, поэтому
+«старая версия в apt/yum» на установку не влияет.
+
+Если Xray уже установлен, повторный запуск ничего не меняет. Обновить до
+последнего релиза или закрепить конкретную версию:
 
 ```bash
+XRAY_VERSION=latest ./install.sh
 XRAY_VERSION=26.5.9 ./install.sh
 ```
 
@@ -158,7 +163,8 @@ journalctl -u localproxy-vless -n 50 --no-pager
 ```bash
 cd /home/zaycevadmin/localproxy-vless
 git pull
-./install.sh                         # обновит Xray, только если задан XRAY_VERSION
+./install.sh                         # поставит Xray, если его ещё нет
+XRAY_VERSION=latest ./install.sh     # при необходимости обновить Xray
 sudo ./systemd/install-systemd.sh    # обновит unit, права и CRLF
 sudo systemctl restart localproxy-vless
 ./scripts/check.sh
@@ -236,6 +242,7 @@ sudo ss -tulpen | grep -i xray
 | `status=203/EXEC` в systemd | `sudo ./systemd/install-systemd.sh`, затем `sudo systemctl restart localproxy-vless` |
 | `status=200/CHDIR` | Переустановите unit: `sudo ./systemd/install-systemd.sh` |
 | `meta.json нет` | `python3 scripts/generate_config.py` (сначала исправьте ошибку из вывода) |
+| `Не удалось определить последнюю версию Xray` | Проверьте доступ к GitHub или задайте версию: `XRAY_VERSION=26.5.9 ./install.sh` |
 | `Expecting property name enclosed in double quotes` | `proxy.json` должен быть валидным JSON (без комментариев) |
 | Сервис `failed` | `journalctl -u localproxy-vless -n 100` и `var/log/error.log` |
 | «Занятые порты» | Смените `port` в `proxy.json` или остановите конфликтующий сервис |

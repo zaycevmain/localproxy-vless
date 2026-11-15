@@ -7,29 +7,72 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=scripts/common.sh
 source "${SCRIPT_DIR}/scripts/common.sh"
 
-DEFAULT_XRAY_VERSION="26.4.15"
 REQUESTED_VERSION="${XRAY_VERSION:-}"
+RESOLVE_LATEST=0
+
+if [[ "${REQUESTED_VERSION}" == "latest" ]]; then
+  REQUESTED_VERSION=""
+  RESOLVE_LATEST=1
+else
+  REQUESTED_VERSION="${REQUESTED_VERSION#v}"
+fi
 
 installed_version() {
   "${XRAY_BIN}" version 2>/dev/null | awk 'NR==1 {print $2}'
 }
 
+resolve_latest_version() {
+  local url tag
+  command -v curl >/dev/null 2>&1 || return 1
+
+  url="$(curl -fsSIL -o /dev/null -w '%{url_effective}' \
+    https://github.com/XTLS/Xray-core/releases/latest 2>/dev/null || true)"
+  if [[ -z "${url}" ]]; then
+    url="$(curl -fsSL -o /dev/null -w '%{url_effective}' \
+      https://github.com/XTLS/Xray-core/releases/latest 2>/dev/null || true)"
+  fi
+
+  tag="${url##*/}"
+  tag="${tag#v}"
+  [[ "${tag}" =~ ^[0-9]+\.[0-9]+ ]] || return 1
+  printf '%s\n' "${tag}"
+}
+
 if [[ -x "${XRAY_BIN}" ]]; then
   installed="$(installed_version || true)"
-  if [[ -z "${REQUESTED_VERSION}" && -n "${installed}" ]]; then
-    log "Xray уже установлен: ${installed} (задайте XRAY_VERSION, чтобы заменить)"
+
+  if [[ -z "${installed}" && -z "${REQUESTED_VERSION}" ]]; then
+    RESOLVE_LATEST=1
+  fi
+
+  if [[ "${RESOLVE_LATEST}" == "0" && -z "${REQUESTED_VERSION}" && -n "${installed}" ]]; then
+    log "Xray уже установлен: ${installed}"
+    log "Обновить до последней версии: XRAY_VERSION=latest ./install.sh"
+    log "Закрепить версию:             XRAY_VERSION=26.5.9 ./install.sh"
     exit 0
   fi
-  if [[ "${REQUESTED_VERSION}" == "${installed}" ]]; then
+
+  if [[ "${RESOLVE_LATEST}" == "1" ]]; then
+    resolved="$(resolve_latest_version || true)"
+    [[ -n "${resolved}" ]] || die "Не удалось определить последнюю версию Xray. Проверьте сеть или задайте XRAY_VERSION вручную."
+    REQUESTED_VERSION="${resolved}"
+  fi
+
+  if [[ -n "${installed}" && "${REQUESTED_VERSION}" == "${installed}" ]]; then
     log "Xray ${installed} уже установлен"
     exit 0
   fi
-  if [[ -n "${REQUESTED_VERSION}" ]]; then
-    log "Замена Xray ${installed:-?} -> ${REQUESTED_VERSION}"
+
+  log "Замена Xray ${installed:-?} -> ${REQUESTED_VERSION}"
+else
+  if [[ "${RESOLVE_LATEST}" == "1" || -z "${REQUESTED_VERSION}" ]]; then
+    resolved="$(resolve_latest_version || true)"
+    [[ -n "${resolved}" ]] || die "Не удалось определить последнюю версию Xray. Проверьте сеть или задайте XRAY_VERSION вручную."
+    REQUESTED_VERSION="${resolved}"
   fi
 fi
 
-XRAY_VERSION="${REQUESTED_VERSION:-${DEFAULT_XRAY_VERSION}}"
+XRAY_VERSION="${REQUESTED_VERSION}"
 ARCH_SUFFIX="$(detect_arch)"
 
 for tool in curl unzip; do
