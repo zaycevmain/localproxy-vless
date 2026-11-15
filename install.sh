@@ -7,17 +7,38 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=scripts/common.sh
 source "${SCRIPT_DIR}/scripts/common.sh"
 
-XRAY_VERSION="${XRAY_VERSION:-26.4.15}"
-ARCH_SUFFIX="$(detect_arch)"
-TMP_DIR="$(mktemp -d)"
-trap 'rm -rf "${TMP_DIR}"' EXIT
+DEFAULT_XRAY_VERSION="26.4.15"
+REQUESTED_VERSION="${XRAY_VERSION:-}"
 
-mkdir -p "${BIN_DIR}"
+installed_version() {
+  "${XRAY_BIN}" version 2>/dev/null | awk 'NR==1 {print $2}'
+}
 
 if [[ -x "${XRAY_BIN}" ]]; then
-  log "Xray уже установлен: $(${XRAY_BIN} version 2>/dev/null | head -n1 || echo 'ok')"
-  exit 0
+  installed="$(installed_version || true)"
+  if [[ -z "${REQUESTED_VERSION}" && -n "${installed}" ]]; then
+    log "Xray уже установлен: ${installed} (задайте XRAY_VERSION, чтобы заменить)"
+    exit 0
+  fi
+  if [[ "${REQUESTED_VERSION}" == "${installed}" ]]; then
+    log "Xray ${installed} уже установлен"
+    exit 0
+  fi
+  if [[ -n "${REQUESTED_VERSION}" ]]; then
+    log "Замена Xray ${installed:-?} -> ${REQUESTED_VERSION}"
+  fi
 fi
+
+XRAY_VERSION="${REQUESTED_VERSION:-${DEFAULT_XRAY_VERSION}}"
+ARCH_SUFFIX="$(detect_arch)"
+
+for tool in curl unzip; do
+  command -v "${tool}" >/dev/null 2>&1 || die "Нужен ${tool}: sudo apt install ${tool}"
+done
+
+TMP_DIR="$(mktemp -d)"
+trap 'rm -rf "${TMP_DIR}"' EXIT
+mkdir -p "${BIN_DIR}"
 
 ZIP_NAME="Xray-linux-${ARCH_SUFFIX}.zip"
 URL="https://github.com/XTLS/Xray-core/releases/download/v${XRAY_VERSION}/${ZIP_NAME}"
@@ -25,10 +46,6 @@ URL="https://github.com/XTLS/Xray-core/releases/download/v${XRAY_VERSION}/${ZIP_
 log "Скачиваю Xray v${XRAY_VERSION} (${ARCH_SUFFIX})..."
 if ! curl -fsSL -o "${TMP_DIR}/${ZIP_NAME}" "${URL}"; then
   die "Не удалось скачать ${URL}. Проверьте сеть или задайте XRAY_VERSION вручную."
-fi
-
-if ! command -v unzip >/dev/null 2>&1; then
-  die "Нужен unzip: sudo apt install unzip  (или yum install unzip)"
 fi
 
 unzip -q "${TMP_DIR}/${ZIP_NAME}" -d "${TMP_DIR}"

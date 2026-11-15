@@ -16,7 +16,7 @@ if ! command -v python3 >/dev/null 2>&1; then
 fi
 
 log "Генерация конфига..."
-python3 "${ROOT_DIR}/scripts/generate_config.py" || die "Ошибка генерации конфига"
+run_config generate || die "Ошибка генерации конфига"
 
 if ! check_ports_free; then
   die "Один или несколько портов уже заняты на этом хосте. Проверьте proxy.json или остановите конфликтующий сервис."

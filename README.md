@@ -32,22 +32,25 @@
 
 ### 1. Скопируйте проект на сервер
 
-Например:
+Например, клонируйте репозиторий:
 
 ```bash
-/home/zaycevadmin/localproxy-vless
+git clone https://github.com/zaycevmain/localproxy-vless.git /home/zaycevadmin/localproxy-vless
+cd /home/zaycevadmin/localproxy-vless
 ```
 
-Дальше все команды — из этой папки.
+Можно также скопировать папку вручную (например, через `scp`). Дальше все
+команды выполняются из папки проекта.
 
-### 2. Права и переводы строк (если копировали с Windows)
+### 2. Права на скрипты
 
 ```bash
 cd /home/zaycevadmin/localproxy-vless
-
-sed -i 's/\r$//' install.sh scripts/*.sh systemd/*.sh
-chmod +x install.sh scripts/run-foreground.sh scripts/check.sh systemd/install-systemd.sh
+chmod +x install.sh scripts/*.sh systemd/*.sh
 ```
+
+Переводы строк Git приводит к LF автоматически (`.gitattributes`), а
+`install-systemd.sh` дополнительно исправляет CRLF перед установкой.
 
 ### 3. Установите Xray
 
@@ -55,7 +58,8 @@ chmod +x install.sh scripts/run-foreground.sh scripts/check.sh systemd/install-s
 ./install.sh
 ```
 
-Другая версия Xray:
+Если Xray уже установлен, повторный запуск ничего не меняет. Чтобы
+обновить или откатить версию:
 
 ```bash
 XRAY_VERSION=26.5.9 ./install.sh
@@ -104,10 +108,20 @@ nano config/proxy.json   # порты, логины, пароли
 | `listen_host` | `0.0.0.0` — доступ снаружи (через проброс на роутере); `127.0.0.1` — только с самого сервера |
 | `http_active` / `socks5_active` | Включить соответствующие типы из списка `proxies` |
 
+`user` и `password` обязательны для каждого прокси, порты не должны повторяться.
+
 Проверка генерации конфига без запуска:
 
 ```bash
 python3 scripts/generate_config.py
+```
+
+Диагностика (без запуска сервиса):
+
+```bash
+python3 scripts/generate_config.py show    # список активных прокси
+python3 scripts/generate_config.py ports   # свободны ли порты
+python3 scripts/generate_config.py check   # внешний IP через каждый прокси
 ```
 
 ### 5. Установите systemd-сервис
@@ -136,6 +150,21 @@ sudo systemctl enable --now localproxy-vless
 systemctl status localproxy-vless --no-pager
 journalctl -u localproxy-vless -n 50 --no-pager
 ```
+
+---
+
+## Обновление проекта
+
+```bash
+cd /home/zaycevadmin/localproxy-vless
+git pull
+./install.sh                         # обновит Xray, только если задан XRAY_VERSION
+sudo ./systemd/install-systemd.sh    # обновит unit, права и CRLF
+sudo systemctl restart localproxy-vless
+./scripts/check.sh
+```
+
+После обновления конфиг Xray пересобирается автоматически при рестарте.
 
 ---
 
@@ -180,7 +209,7 @@ tail -f var/log/access.log
 
 ```bash
 # SOCKS5
-curl -s --socks5 "socks5://USER:PASS@127.0.0.1:1080" https://api.ipify.org ; echo
+curl -s --socks5-hostname "socks5://USER:PASS@127.0.0.1:1080" https://api.ipify.org ; echo
 
 # HTTP
 curl -s -x "http://USER:PASS@127.0.0.1:3128" https://api.ipify.org ; echo
@@ -194,7 +223,7 @@ curl -s https://api.ipify.org ; echo
 Порты слушают:
 
 ```bash
-ss -tulpen | grep -E '(:1080|:3128)\b'
+sudo ss -tulpen | grep -i xray
 ```
 
 ---
@@ -204,13 +233,14 @@ ss -tulpen | grep -E '(:1080|:3128)\b'
 | Симптом | Решение |
 |---------|---------|
 | `bash\r: No such file or directory` | `sed -i 's/\r$//' install.sh scripts/*.sh systemd/*.sh` |
-| `status=203/EXEC` в systemd | `sed -i 's/\r$//' scripts/*.sh && chmod +x scripts/run-foreground.sh`, затем `sudo ./systemd/install-systemd.sh` и `sudo systemctl restart localproxy-vless` |
-| `status=200/CHDIR` | Проект в `/home/...` — переустановите unit: `sudo ./systemd/install-systemd.sh` (убраны `ProtectHome`/`ProtectSystem`) |
-| `meta.json нет` | Сервис не стартовал. Сначала исправьте 203/EXEC, затем `python3 scripts/generate_config.py` |
-| `Expecting property name enclosed in double quotes` | `proxy.json` должен быть валидным JSON (без комментариев). Обновите `scripts/generate_config.py` |
+| `status=203/EXEC` в systemd | `sudo ./systemd/install-systemd.sh`, затем `sudo systemctl restart localproxy-vless` |
+| `status=200/CHDIR` | Переустановите unit: `sudo ./systemd/install-systemd.sh` |
+| `meta.json нет` | `python3 scripts/generate_config.py` (сначала исправьте ошибку из вывода) |
+| `Expecting property name enclosed in double quotes` | `proxy.json` должен быть валидным JSON (без комментариев) |
 | Сервис `failed` | `journalctl -u localproxy-vless -n 100` и `var/log/error.log` |
 | «Занятые порты» | Смените `port` в `proxy.json` или остановите конфликтующий сервис |
 | Прокси есть, интернета нет | Проверьте VLESS-ссылку и доступность зарубежного сервера с хоста |
+| `должны быть заполнены user и password` | У каждого прокси в `proxy.json` не должно быть пустых логина/пароля |
 
 ---
 
@@ -220,7 +250,8 @@ ss -tulpen | grep -E '(:1080|:3128)\b'
 localproxy-vless/
   install.sh                 # скачать Xray в bin/
   scripts/
-    generate_config.py       # vless.url + proxy.json → var/config.json
+    common.sh                # общие пути и функции
+    generate_config.py       # generate / ports / show / check
     run-foreground.sh        # старт для systemd
     check.sh                 # статус + проверка IP
   systemd/
@@ -229,12 +260,12 @@ localproxy-vless/
   config/
     vless.url                # ваша VLESS-ссылка (не в git)
     proxy.json               # локальные прокси (не в git)
-  var/                       # сгенерированный конфиг и логи
+  var/                       # config.json, meta.json и логи
   bin/xray                   # бинарник (не в git)
 ```
 
 ## Безопасность
 
-- Сложные пароли на каждом прокси
+- Сложные пароли на каждом прокси; пустые `user`/`password` не принимаются
 - По возможности ограничьте доступ firewall по IP
 - Не публикуйте `config/vless.url` и `config/proxy.json`

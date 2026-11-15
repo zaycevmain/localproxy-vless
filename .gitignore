@@ -2,9 +2,6 @@ bin/
 var/
 config/vless.url
 config/proxy.json
-.DS_Store
-.DS_Store
-.DS_Store
-.DS_Store
-.DS_Store
+__pycache__/
+*.pyc
 .DS_Store

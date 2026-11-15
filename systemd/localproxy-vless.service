@@ -9,6 +9,7 @@ User=__USER__
 Group=__GROUP__
 WorkingDirectory=__ROOT__
 ExecStart=/bin/bash __ROOT__/scripts/run-foreground.sh
+SyslogIdentifier=localproxy-vless
 Restart=on-failure
 RestartSec=3
 LimitNOFILE=1048576
